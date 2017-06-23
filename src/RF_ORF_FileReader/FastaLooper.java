@@ -13,41 +13,41 @@ public class FastaLooper {
     private ArrayList rfOrfs;
     private String[] dnaSeqs;
     private String[] rfSeqs;
-    private int orfSizeDf = 100;
+    private String dnaSeq;
     DNAsequence seq;
 
     public FastaLooper(File selectedFile) {
 
         seq = new DNAsequence();
         headerList = seq.readFile(selectedFile);
-        System.out.println(seq.getHeaderList());
-        System.out.println(seq.getSequenceList());
-
     }
 
-    public void analyze(int headerIndex, int orfSize) {
+    public FastaLooper(String dnaSeq) {
+        seq = new DNAsequence();
+        this.dnaSeq = dnaSeq;
+    }
 
-        //Get(0) is de hoeveelste in de lijst, later uitbreiden met keuze adhv combobox.
-        int i = headerIndex;
+    public void analyze(String header, int headerIndex, int orfSize, boolean fromDb) {
 
-        System.out.println("sequentielijst:");
-        for(Object o: seq.getSequenceList()) {
-            System.out.println((String)o);
+        String templateSequence;
+        if(!fromDb) {
+            int i = headerIndex;
+            templateSequence = seq.getSequenceList().get(i);
         }
-        //String templateSequence = seq.getSequenceList().get(i).split(" ")[1];
-        String templateSequence = seq.getSequenceList().get(i);
+        else {
+            templateSequence = dnaSeq;
+        }
         String complementSequence = seq.getComplementDNAsequence(templateSequence);
 
         SequenceRF rftemplate = new SequenceRF(templateSequence);
         SequenceRF rfcomplementair = new SequenceRF(complementSequence);
 
         SequenceORF ORF = new SequenceORF(rftemplate.getRF0(), rftemplate.getRF1(), rftemplate.getRF2(), rfcomplementair.getRF0(), rfcomplementair.getRF1(), rfcomplementair.getRF2(), orfSize);
-        ORF.findORFs();
+        ORF.findORFs(header);
         orfProps = ORF.getOrfProps();
         rfOrfs = ORF.getRfORfs();
-        //System.out.println(ORF.getCodingsequence());
         rfSeqs = new String[]{rftemplate.getRF0(), rftemplate.getRF1(), rftemplate.getRF2(), rfcomplementair.getRF0(), rfcomplementair.getRF1(), rfcomplementair.getRF2()};
-        dnaSeqs = new String[] {templateSequence, complementSequence};
+        dnaSeqs = new String[]{templateSequence, complementSequence};
 
     }
 

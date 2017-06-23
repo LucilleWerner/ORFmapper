@@ -3,13 +3,11 @@ package GUI;
 /**
  * Created by Heleen on 27-3-2017.
  */
-/**
- * Created by Heleen on 23-3-2017.
- */
+
 
 import RF_ORF_FileReader.FastaLooper;
 import RF_ORF_FileReader.OrfProperty;
-
+import Database.Database;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -27,73 +25,78 @@ import java.util.*;
  */
 public class OrfGUI {
 
+    /**
+     * mainFrame: JFrame: window that is the base of the graphical application.
+     * fileTextField: JTextField: textfield that displays the filepath when file is loaded.
+     * fileChooser: JFileChooser: class for opening an input file and loading the contents.
+     * browseButton, openButton, analyzeButton, blastButton, saveButton: buttons for opening file, analyzing the contents,
+     * blasting the results and saving the results to the database
+     */
     private JFrame mainFrame;
-    private JTextField fileTextField;
-    private JTextField orfSizeField;
+    private JTextField fileTextField, orfSizeField;
     private JFileChooser fileChooser;
-    private JButton browseButton;
-    private JButton openButton;
-    private JButton analyzeButton;
-    private JButton blastButton;
-    private JButton saveButton;
-    private JLabel pathLabel;
-    private JLabel selectseqLabel;
-    private JLabel selectdbLabel;
-    private JLabel selectORFlenLabel;
-    private JLabel orfPanelLabel;
-    private JLabel selectORFLabel;
-    private JLabel saveLabel;
-    private JLabel resultsLabel;
+    private JButton browseButton, openButton, analyzeButton, blastButton, saveButton;
+    private JLabel pathLabel, selectseqLabel,selectdbLabel, selectORFlenLabel;
+    private JLabel orfDrawingPanelLabel, selectORFLabel, saveLabel, resultsLabel;
     private JSlider orfSlider;
-    private JComboBox sequenceBox;
-    private JComboBox dbSeqBox;
+    private JComboBox sequenceBox, dbSeqBox;
     private JComboBox orfBox;
-    private JScrollPane rfscrollpane;
-    private JScrollBar rfScrollbar;
-    private JPanel rfdrawingPane;
-    private JPanel orfPanel;
-    private JPanel resultsPanel;
-    private String path;
-    private String sequenceChoice;
-    private String dbSeqChoice;
-    private String orfChoice;
-    private String[] dnaSeqs;
-    private String[] rfSeqs;
+    private JScrollPane rfScrollpane, orfScrollPane;
+    private JPanel rfDrawingPane, orfDrawingPane, resultsPanel;
+    private String path, sequenceChoice, dbSeqChoice, orfChoice, dnaSeq;
+    private String[] dnaSeqs, rfSeqs;
+    private ArrayList<String> openedFiles;
     private ArrayList<String> headers;
     private ArrayList<OrfProperty> orfProps;
     private ArrayList<String[]> rfOrfs;
     private Dimension rfArea;
-    private int orfSize;
-    private int fileVal;
+    private Dimension orfArea;
+    private int orfSize, fileVal;
+    private Integer orfChoiceIndx;
+    private boolean pathPasted = false;
+    private boolean newFile = false;
+    private boolean fromDb = false;
     private File selectedFile;
     private FastaLooper fastaLooper;
 
-
+    /**
+     * constructor for ORFGui, prepareGUI is called for initialization of the components of the GUI
+     */
     public OrfGUI() {
         prepareGui();
     }
 
+    /**
+     * main method: new GUI object is initialized, showEvents is called for initialization of Listeners
+     * @param args
+     */
     public static void main(String[] args) {
         OrfGUI newGui = new OrfGUI();
         newGui.showEvents();
-
     }
 
-
+    /**
+     * method for initalizing, setting the properties and placing the components in the JFrame
+     */
     private void prepareGui() {
 
+        //initialzing ArrayList for keeping track of opened files in the program
+        openedFiles = new ArrayList<>();
+
+        //initializing JFrame, and setting properties
         mainFrame = new JFrame("ORF finder");
-        //mainFrame.setSize(700,700);
         mainFrame.setLayout(new GridBagLayout());
         mainFrame.setDefaultCloseOperation(mainFrame.EXIT_ON_CLOSE);
 
+        //get content pane for adding the components
         Container pane = mainFrame.getContentPane();
         pane.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
 
-
+        //gridbagconstraints Layout for setting absolute coordinates
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(0,10,10,20);
 
+        //initializing components and setting the coordinates
         pathLabel = new JLabel("file path");
         c.anchor = GridBagConstraints.LINE_START;
         c.gridx = 0;
@@ -137,7 +140,6 @@ public class OrfGUI {
         pane.add(sequenceBox, c);
 
         selectdbLabel = new JLabel("Or from database");
-        //c.anchor = GridBagConstraints.CENTER;
         c.gridx = 2;
         c.gridy = 1;
         c.gridwidth = 1;
@@ -146,7 +148,7 @@ public class OrfGUI {
         pane.add(selectdbLabel, c);
 
         dbSeqBox = new JComboBox();
-        //c.anchor = GridBagConstraints.CENTER;
+        updateDbSeqComboBox();
         c.gridx = 3;
         c.gridy = 1;
         c.gridwidth = 2;
@@ -194,13 +196,12 @@ public class OrfGUI {
         c.ipadx = 0;
         pane.add(analyzeButton, c);
 
-        //rfdrawingPane = new JPanel(new BorderLayout());
-        //rfdrawingPane.setBackground(Color.WHITE);
-        rfdrawingPane = new RFDrawingPane();
-        rfdrawingPane.setBackground(Color.WHITE);
-        rfdrawingPane.setAutoscrolls(true);
-        rfscrollpane = new JScrollPane(rfdrawingPane);
-        rfscrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+        //initializing scrollpanel and adding JFRame to it
+        rfDrawingPane = new RFDrawingPane();
+        rfDrawingPane.setBackground(Color.WHITE);
+        rfDrawingPane.setAutoscrolls(true);
+        rfScrollpane = new JScrollPane(rfDrawingPane);
+        rfScrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
         c.anchor = GridBagConstraints.LINE_END;
         c.gridx = 1;
         c.gridy = 3;
@@ -208,28 +209,29 @@ public class OrfGUI {
         c.gridwidth = 6;
         c.ipadx = 730;
         c.ipady = 300;
-        pane.add(rfscrollpane, c);
+        pane.add(rfScrollpane, c);
 
-        orfPanelLabel = new JLabel("ORF sequence");
+        orfDrawingPanelLabel = new JLabel("ORF sequence");
         c.anchor = GridBagConstraints.LINE_START;
         c.gridx = 0;
         c.gridy = 4;
-        //c.weightx = 0;
         c.gridwidth = 1;
         c.ipadx = 0;
         c.ipady = 0;
-        pane.add(orfPanelLabel, c);
+        pane.add(orfDrawingPanelLabel, c);
 
-        orfPanel = new JPanel();
+        orfDrawingPane = new ORFDrawingPane();
+        orfDrawingPane.setBackground(Color.WHITE);
+        orfDrawingPane.setAutoscrolls(true);
+        orfScrollPane = new JScrollPane(orfDrawingPane);
+        orfScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
         c.anchor = GridBagConstraints.LINE_END;
-        orfPanel.setBackground(Color.WHITE);
         c.gridx = 1;
         c.gridy = 4;
-        //c.weightx = 1.0;
         c.gridwidth = 6;
         c.ipadx = 730;
         c.ipady = 60;
-        pane.add(orfPanel, c);
+        pane.add(orfScrollPane, c);
 
         selectORFLabel = new JLabel("select ORF");
         c.anchor = GridBagConstraints.LINE_START;
@@ -296,6 +298,9 @@ public class OrfGUI {
 
     }
 
+    /**
+     * initialzing Listeners for the textFields, Buttons, ComboBoxes and JPanels
+     */
     private void showEvents() {
         //initializing action listeners
         fileTextField.addActionListener(new FileTextFieldListener());
@@ -309,28 +314,78 @@ public class OrfGUI {
         dbSeqBox.addActionListener(new DbSeqBoxListener());
         orfBox.addActionListener(new OrfBoxListener());
         orfSlider.addChangeListener(new orfSliderListener());
-        rfdrawingPane.addMouseListener(new RFdrawingPaneListener());
-
+        orfDrawingPane.addMouseListener(new ORFdrawingPaneListener());
+        rfDrawingPane.addMouseListener(new RFdrawingPaneListener());
 
     }
 
+    /**
+     * Listener for ORFdrawingPane, repaint JPanel after scrolling
+     */
+    public class ORFdrawingPaneListener implements MouseListener {
+        public void mouseEntered(MouseEvent e) {}
+        public void mouseClicked(MouseEvent e) {}
+        public void mouseExited(MouseEvent e){}
+        public void mousePressed(MouseEvent e){}
+        public void mouseReleased(MouseEvent e) {
+            orfDrawingPane.repaint();
+        }
+    }
+
+    /**
+     * Listener for RFdrawingPane, repaint JPanel after scrolling
+     */
     public class RFdrawingPaneListener implements MouseListener {
         public void mouseEntered(MouseEvent e) {}
         public void mouseClicked(MouseEvent e) {}
         public void mouseExited(MouseEvent e){}
         public void mousePressed(MouseEvent e){}
         public void mouseReleased(MouseEvent e) {
-            rfdrawingPane.repaint();
+            rfDrawingPane.repaint();
         }
 
 
     }
 
+    /**
+     * Class for drawing the selected ORF from orfBox in the JPanel orfDrawingPane
+     */
+    public class ORFDrawingPane extends JPanel {
+        protected void PaintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            int indx;
+            if(orfChoiceIndx!= null) {
+                indx = orfChoiceIndx;}
+            else {
+                indx = 0;}
+            String orf = orfProps.get(indx).getOrfSeq();
+            orfArea = new Dimension(0, 300);
+            orfDrawingPane.removeAll();
+            g.setColor(Color.black);
+
+            Font font = new Font("Consolas", Font.BOLD, 20);
+            g.setFont(font);
+            FontMetrics metrics = g.getFontMetrics();
+            double seqHeight = metrics.getStringBounds(orf,g).getHeight();
+            double seqWidth = metrics.getStringBounds(orf,g).getWidth();
+            g.drawString(orf, 0, (int)(30+seqHeight));
+
+            orfArea.width = (int)seqWidth;
+            orfDrawingPane.setPreferredSize(orfArea);
+            orfDrawingPane.revalidate();
+        }
+    }
+
+    /**
+     * Class for drawing the selected header from sequenceBox in the JPanel rfDrawingPane
+     */
     public class RFDrawingPane extends JPanel {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
 
             if(dnaSeqs != null && rfSeqs != null) {
+
                 String template = dnaSeqs[0];
                 String complementary = dnaSeqs[1];
                 String rfT0 = rfSeqs[0];
@@ -349,27 +404,36 @@ public class OrfGUI {
 
                 rfArea = new Dimension(0, 300);
                 double height = 300;
-                rfdrawingPane.removeAll();
+                rfDrawingPane.removeAll();
 
+                //setting the Font with a font with uniform spacing
                 Font font = new Font("Consolas", Font.BOLD, 20);
                 FontMetrics metrics = g.getFontMetrics(font);
 
+                //get bounds from font
                 double letterWidth = metrics.getStringBounds("A", g).getWidth();
                 double seqWidth = metrics.getStringBounds(template, g).getWidth();
                 double seqHeight = metrics.getStringBounds(template,g).getHeight();
 
+                //set font and color for the text
                 g.setFont(font);
-
                 g.setColor(Color.black);
+
+                //draw template and complementary dna strand in the middle of the panel
                 g.drawString(template, 0, (int)((height/2)-seqHeight));
                 g.drawString(complementary, 0, (int)((height/2)+seqHeight));
 
+                //standard intervening space for the aminoacid letters
                 int space = (int)(letterWidth*3);
+                //current starting point for drawing, reading frame 0 starts at 1.5, reading frame 1 at 2.5 etc
                 int cur = (int)(letterWidth*1.5);
+                //if the original dna strand (before splitting on *) containes a *, draw a *
                 if(rfT0.startsWith("*")){
                     g.drawString("*", cur, 100);
                     cur+= space;
                 }
+                //for string in dna split on * symbol (a String[]) draw the string, when the substring is a ORF, draw
+                //the string orange, when it is not, draw the string black
                 for(String sub: rft0) {
                     g.setColor(Color.black);
                     if(sub.length()>orfSize) {
@@ -473,72 +537,73 @@ public class OrfGUI {
                     cur+= space;
                 }
 
+                //set the width of the frame to the width of the longest sequence
                 rfArea.width = (int)seqWidth;
-                rfdrawingPane.setPreferredSize(rfArea);
-                rfdrawingPane.revalidate();
+                rfDrawingPane.setPreferredSize(rfArea);
+                rfDrawingPane.revalidate();
             }
         }
     }
 
-
+    /**
+     * Method for updating the header comboBox with headers from the loaded file
+     */
     private void updateSeqComboBox() {
-        headers = fastaLooper.getHeaderList();
-        sequenceBox.setPreferredSize(new Dimension(40,20));
-        sequenceBox.setMaximumSize(new Dimension(40,20));
-        sequenceBox.setPrototypeDisplayValue("XXXX");
-        for(String item: headers) {
-            sequenceBox.addItem(item);
+        if(!newFile) {
+            headers = fastaLooper.getHeaderList();
+            sequenceBox.setPreferredSize(new Dimension(40, 20));
+            sequenceBox.setMaximumSize(new Dimension(40, 20));
+            sequenceBox.setPrototypeDisplayValue("XXXX");
+            for (String item : headers) {
+                sequenceBox.addItem(item);
+            }
+            newFile = false;
+            mainFrame.pack();
         }
-        //mainFrame.setPreferredSize(mainFrame.getPreferredSize());
-        //sequenceBox.setPreferredSize(new Dimension(50,20));
-        //sequenceBox.setModel(new DefaultComboBoxModel(headers.toArray()));
-        //sequenceBox.setMaximumSize(new Dimension(50,20));
-        //mainFrame.setResizable(false);
+    }
 
+    /**
+     * Method for updating the comboBox with the headers currently in the database
+     */
+    private void updateDbSeqComboBox() {
+        dbSeqBox.setPreferredSize(new Dimension(60,20));
+        dbSeqBox.setMaximumSize(new Dimension(60,20));
+        dbSeqBox.setPrototypeDisplayValue("XXXXXXXXX");
+        Database db = new Database();
+        db.fetchHeaders();
+        ArrayList<String> headers = db.getFastaHeaders();
+
+        for(String header: headers) {
+            dbSeqBox.addItem(header);
+        }
         mainFrame.pack();
     }
 
+    /**
+     * Method for updating the comboBox orfBox with orfs found by the app
+     */
     private void updateOrfBox() {
         orfBox.setPreferredSize(new Dimension(60,20));
         orfBox.setMaximumSize(new Dimension(60,20));
         orfBox.setPrototypeDisplayValue("XXXXXXXXXX");
-        ArrayList<String> orfNames = new ArrayList<>();
-        String rF;
-        for(OrfProperty prop: orfProps) {
-            int rf = prop.RF;
-            switch (rf) {
-                case 0: rF = "Rft0";
-                    break;
-                case 1: rF = "Rft1";
-                    break;
-                case 2: rF = "Rft2";
-                    break;
-                case 3: rF = "Rfc0";
-                    break;
-                case 4: rF = "Rfc1";
-                    break;
-                case 5: rF = "Rfc2";
-                    break;
-                default: rF = "Rf";
-            }
-            //String name = sequenceChoice.substring(1).split(" ")[0]+"_"+rF;
-            String name = sequenceChoice.split("_")[0].substring(1)+"_"+rF;
-            System.out.println(name);
-            int i = 1;
-            while (orfNames.contains(name)) {
-                name += "_"+Integer.toString(i);
-                i++;}
-            orfNames.add(name);
-            orfBox.addItem(name);
 
-        mainFrame.pack();
+        for(OrfProperty prop: orfProps) {
+            orfBox.addItem(prop.getOrfName());
         }
+        mainFrame.pack();
     }
 
+    /**
+     * Method for updating the slider when value is set in orfTextField
+     * @param orfSize: minimum ORF size set by user
+     */
     private void updateOrfSlider(int orfSize){
         orfSlider.setValue(orfSize);
     }
 
+    /**
+     * Listener for the slider, getting the minimum ORF size value
+     */
     private class orfSliderListener implements ChangeListener {
         public void stateChanged(ChangeEvent e) {
             JSlider source = (JSlider)e.getSource();
@@ -549,6 +614,9 @@ public class OrfGUI {
         }
     }
 
+    /**
+     * Listener for te TextField orfTextField, orfSlider is updated
+     */
     private class orfSizeFieldListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
             String val = orfSizeField.getText();
@@ -557,45 +625,76 @@ public class OrfGUI {
         }
     }
 
+    /**
+     * Listener for the TextField where a path may be typed of pasted
+     */
     private class FileTextFieldListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            String path = fileTextField.getText();
+            path = fileTextField.getText();
             fileTextField.isEnabled();
             selectedFile = new File(path);
-            //enable openbutton
+            pathPasted = true;
         }
     }
+
+    /**
+     * Listener for the Button browseButton, a File object is obtained from te loaded file
+     */
     private class BrowseButtonListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
             fileChooser = new JFileChooser();
             fileVal = fileChooser.showOpenDialog(mainFrame);
             selectedFile = fileChooser.getSelectedFile();
-
-            fileTextField.setText(selectedFile.getAbsolutePath());
+            path = selectedFile.getAbsolutePath();
+            fileTextField.setText(path);
             //enable openbutton
         }
     }
 
+    /**
+     * Listener for the Button openButton, a FastaLooper object is initialized and SeqComboBox is updated
+     */
     private class OpenButtonListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            if (fileVal == JFileChooser.APPROVE_OPTION || fileTextField.isEnabled()) {
-                fastaLooper = new FastaLooper(selectedFile);
-                updateSeqComboBox();
-            }
-            //code voor open sequentie uit database
+            if (fileVal == JFileChooser.APPROVE_OPTION || pathPasted) {
+                if (openedFiles.isEmpty() || !path.equals(openedFiles.get(openedFiles.size() - 1))) {
+                    fastaLooper = new FastaLooper(selectedFile);
+                    updateSeqComboBox();
+                    openedFiles.add(path);
+                    newFile = true;
+                    fromDb = false;
+                    if (pathPasted) {
+                        pathPasted = false;
+                    }
+                }
+            }//code voor open sequentie uit database
         }
     }
 
+    /**
+     * Listener for the analyzeButton, dnasequence analysis is initialized
+     */
     public class AnalyzeButtonListener implements ActionListener{
         public void actionPerformed(ActionEvent e) {
+
+            //check if a orf size is given by the user, if not default is assigned
             if(orfSize == 0) {
                 orfSize = 30;
             }
-
-            System.out.println("Orf size: "+ orfSize);
-            int headerIndex = headers.indexOf(sequenceChoice);
-            System.out.println("headerindex is " +headerIndex);
-            fastaLooper.analyze(headerIndex, orfSize);
+            //if the sequence is selected from the database, the dna sequence is passed on to the class
+            //else the file is passed on to the class
+            if(!fromDb) {
+                int headerIndex = headers.indexOf(sequenceChoice);
+                fastaLooper.analyze(sequenceChoice, headerIndex, orfSize, false);}
+            else {
+                Database db = new Database();
+                db.getFromDatabase(dbSeqChoice);
+                dnaSeq = db.getDna();
+                fastaLooper = new FastaLooper(dnaSeq);
+                int headerIndex = 0;
+                fastaLooper.analyze(dbSeqChoice, headerIndex, orfSize, true);
+            }
+            //get String[] dnaseqs with template and complementary
             dnaSeqs = fastaLooper.getDNAseqs();
             rfSeqs = fastaLooper.getRfSeqs();
             orfProps = fastaLooper.getOrfProps();
@@ -609,19 +708,23 @@ public class OrfGUI {
                 updateOrfBox();
             }
 
-            rfdrawingPane.repaint();
+            rfDrawingPane.repaint();
         }
     }
 
     private class BlastButtonListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            //dostuff
         }
     }
 
     private class SaveButtonListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            //dostuff
+            if(!orfProps.isEmpty() && dnaSeqs.length!=0) {
+                Database db = new Database();
+                dnaSeq = dnaSeqs[0];
+                db.insertIntoDatabase(sequenceChoice, dnaSeq, orfProps);
+                updateDbSeqComboBox();
+            }
         }
     }
 
@@ -640,6 +743,7 @@ public class OrfGUI {
             dbSeqBox = (JComboBox) e.getSource();
             dbSeqBox.setEnabled(true);
             dbSeqChoice = (String) dbSeqBox.getSelectedItem();
+            fromDb = true;
 
         }
     }
@@ -649,6 +753,8 @@ public class OrfGUI {
             orfBox = (JComboBox) e.getSource();
             orfBox.setEnabled(true);
             orfChoice = (String) orfBox.getSelectedItem();
+            orfChoiceIndx = orfBox.getSelectedIndex();
+            orfDrawingPane.repaint();
         }
     }
 

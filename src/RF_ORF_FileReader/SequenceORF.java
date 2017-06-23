@@ -33,11 +33,12 @@ public class SequenceORF {
         rfs.add(RFC1);
         rfs.add(RFC2);
     }
-    public void findORFs(){
+    public void findORFs(String header){
         int start;
         int end;
+        ArrayList<String> orfNames = new ArrayList<>();
         orfProps = new ArrayList<>();
-        // Loopt over je readingframes
+        //Loops over reading frames
         for(int i =0; i<rfs.size(); i++){
             String seq = rfs.get(i);
             String[] cds = seq.split("\\*");
@@ -49,7 +50,7 @@ public class SequenceORF {
                 seq = seq.substring(index + 1);
             }
             ArrayList<String> orfs = new ArrayList<>();
-            // Loopt over sequentie voor ORF's
+            //Loops over DNA sequences
             for(int j=0; j<cds.length; j++){
                 if(j==0) {
                     System.out.println("stopCodons size" + stopCodons.size());
@@ -80,8 +81,34 @@ public class SequenceORF {
                         start = stopCodons.get(j-1)+1;
                     }
 
+                    String rF;
+                    int rf = i;
+                    switch (rf) {
+                        case 0: rF = "Rft0";
+                            break;
+                        case 1: rF = "Rft1";
+                            break;
+                        case 2: rF = "Rft2";
+                            break;
+                        case 3: rF = "Rfc0";
+                            break;
+                        case 4: rF = "Rfc1";
+                            break;
+                        case 5: rF = "Rfc2";
+                            break;
+                        default: rF = "Rf";
+                    }
+
+                    String name = header.split("_")[0].substring(1)+"_"+rF;
+                    System.out.println(name);
+                    int c = 1;
+                    while (orfNames.contains(name)) {
+                        name += "_"+Integer.toString(c);
+                        c++;
+                    }
+                    orfNames.add(name);
                     //add orfProperty objects with orf sequence,RF index, start index, end index to ArrayList orfProps
-                    orfProps.add(new OrfProperty(orf, i, start, end));
+                    orfProps.add(new OrfProperty(name, orf, rF, i, start, end));
                     System.out.println("orfprops size: "+orfProps.size());
                 }
             }
